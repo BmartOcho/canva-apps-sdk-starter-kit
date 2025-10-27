@@ -19,7 +19,8 @@
     "format:file": "prettier $1 --no-config --write",
     "test": "jest --no-cache --detectOpenHandles",
     "test:watch": "jest --no-cache --watch",
-    "postinstall": "ts-node ./scripts/copy_env.ts"
+    "postinstall": "ts-node ./scripts/copy_env.ts",
+    "start:backend": "ts-node ./backend/server.ts"
   },
   "keywords": [],
   "author": "Canva Pty Ltd.",
