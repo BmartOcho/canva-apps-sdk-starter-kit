@@ -165,26 +165,53 @@ export const createImageRouter = () => {
 
   // ✅ New route: /generate → connects Canva App SDK to MCP backend
   router.post(Routes.GENERATE, async (req, res) => {
+  try {
+    const { prompt, width, height } = req.body;
+    if (!prompt || !width || !height) {
+      return res.status(400).json({ error: "Missing required fields (prompt, width, height)" });
+    }
+
+    // Log incoming request
+    console.log("🎨 /generate called with:", { prompt, width, height });
+
+    // Forward to MCP server
+    const forwardBody = {
+      action: "generate_template",
+      payload: { name: prompt, width, height },
+    };
+
     try {
-      const { prompt, width, height } = req.body;
-      if (!prompt || !width || !height)
-        return res.status(400).json({ error: "Missing required fields (prompt, width, height)" });
-
-      // Forward to MCP server
-      // Note: logging via console is disabled to comply with lint rules
-      await axios.post(`${BACKEND_URL}/agent/command`, {
-        action: "generate_template",
-        payload: { name: prompt, width, height },
+      const forwardRes = await axios.post(`${BACKEND_URL}/agent/command`, forwardBody, {
+        headers: { "Content-Type": "application/json" },
+        timeout: 5000,
       });
-
-      res.status(200).json({
+      console.log("➡️ Forward response:", forwardRes.data);
+      return res.status(200).json({
         success: true,
         message: `Forwarded design generation request for "${prompt}"`,
+        forwardResponse: forwardRes.data,
       });
-    } catch (err) {
-      handleError(res, err, "Failed to forward design generation request");
+    } catch (forwardErr) {
+      // Very verbose logging for debugging
+      console.error("🚨 Forwarding to MCP failed:");
+      if (forwardErr.response) {
+        console.error("Status:", forwardErr.response.status);
+        console.error("Headers:", forwardErr.response.headers);
+        console.error("Data:", forwardErr.response.data);
+      } else {
+        console.error("Error message:", forwardErr.message);
+      }
+      // return a helpful developer response (you can make this less verbose in production)
+      return res.status(502).json({
+        error: "Failed to forward design generation request",
+        reason: forwardErr.response?.data || forwardErr.message,
+      });
     }
-  });
+  } catch (err) {
+    console.error("Unexpected error in /generate:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
   return router;
 };

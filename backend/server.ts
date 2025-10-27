@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import express from "express";
+import express = require("express");
 import { createImageRouter } from "./routers/image";
 
 dotenv.config();
@@ -15,5 +15,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  // Backend server started
+  console.log(`🚀 Backend listening on http://127.0.0.1:${PORT}`);
 });
