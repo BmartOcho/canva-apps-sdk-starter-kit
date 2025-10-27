@@ -137,63 +137,75 @@ export const createImageRouter = () => {
   /** ------------------------
    * ✅ /generate Route (Canva App → MCP)
    * ------------------------ */
-  router.post(Routes.GENERATE, async (req: Request, res: Response) => {
+ router.post(Routes.GENERATE, async (req, res) => {
+  try {
     const { prompt, width, height } = req.body;
-
     if (!prompt || !width || !height) {
       return res
         .status(400)
         .json({ error: "Missing required fields (prompt, width, height)" });
     }
 
+    // Log incoming request
     console.log("🎨 /generate called with:", { prompt, width, height });
 
+    // Read access token from .env
+    const CANVA_ACCESS_TOKEN = process.env.CANVA_ACCESS_TOKEN;
+    if (!CANVA_ACCESS_TOKEN) {
+      console.error("❌ Missing CANVA_ACCESS_TOKEN in environment variables.");
+      return res
+        .status(500)
+        .json({ error: "Missing CANVA_ACCESS_TOKEN in .env file" });
+    }
+
+    console.log("🔑 Using Canva access token (first 12 chars):", CANVA_ACCESS_TOKEN.slice(0, 12));
+
+    // Forward request to your MCP backend (or directly to Canva API)
+    const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:4000";
+    const forwardBody = {
+      action: "generate_template",
+      payload: { name: prompt, width, height },
+    };
+
     try {
-      const forwardRes = await axios.post(
-        `${BACKEND_URL}/agent/command`,
-        {
-          action: "generate_template",
-          payload: { name: prompt, width, height },
+      console.log("➡️ Forwarding to MCP:", `${BACKEND_URL}/agent/command`);
+
+      const forwardRes = await axios.post(`${BACKEND_URL}/agent/command`, forwardBody, {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${CANVA_ACCESS_TOKEN}`,
         },
-        {
-          headers: { "Content-Type": "application/json" },
-          timeout: 15000,
-        }
-      );
+        timeout: 10000,
+      });
 
-      const data = forwardRes.data;
-      console.log("✅ Response from MCP:", data);
-
-      // Extract Canva link if returned
-      const designUrl =
-        data?.design_url ||
-        data?.url ||
-        (typeof data === "string" && data.includes("canva.com/design")
-          ? data
-          : "https://www.canva.com/placeholder/DAF-demo123");
+      console.log("✅ Canva response:", forwardRes.data);
 
       return res.status(200).json({
         success: true,
-        message: `Design created successfully in Canva.`,
-        design_url: designUrl,
-        raw_response: data,
+        message: `Design generation request for "${prompt}" successful`,
+        forwardResponse: forwardRes.data,
       });
-    } catch (error) {
-      const err = error as any;
-      console.error("❌ Error communicating with MCP:", err.message);
-
-      if (err.response) {
-        console.error("Status:", err.response.status);
-        console.error("Data:", err.response.data);
+    } catch (error: any) {
+      console.error("⚠️ Canva API error details:");
+      if (error.response) {
+        console.error("Status:", error.response.status);
+        console.error("Headers:", error.response.headers);
+        console.error("Data:", error.response.data);
+      } else {
+        console.error("Error message:", error.message);
       }
 
       return res.status(502).json({
         success: false,
         error: "Failed to communicate with Canva MCP server.",
-        details: err.response?.data || err.message,
+        details: error.response?.data || error.message,
       });
     }
-  });
+  } catch (err: any) {
+    console.error("❌ Unexpected error in /generate:", err);
+    return res.status(500).json({ error: "Internal server error", details: err.message });
+  }
+});
 
   return router;
 };
