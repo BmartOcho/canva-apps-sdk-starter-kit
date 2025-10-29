@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-import * as yargs from "yargs";
-import { AppRunner, errorChalk } from "./app_runner";
+import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
+import prompts from "prompts";
+import { AppRunner, errorChalk } from "./app_runner";
 import { Context } from "./context";
-import * as prompts from "prompts";
 
 const appRunner = new AppRunner();
 
